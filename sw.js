@@ -1,5 +1,5 @@
-const CACHE_NAME = 'fvf-v1';
-const assets = ['./index.html']; // Añade aquí tus imágenes si tienes
+const CACHE_NAME = 'fvf-v2';
+const assets = ['./index.html', './escudo.png', './manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
