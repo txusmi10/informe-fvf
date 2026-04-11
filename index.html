@@ -1637,6 +1637,12 @@ function irA(n) {
   seccionActual = n;
   actualizarProgreso(n);
   if (n === 7) construirResumen();
+  if (n === 5) {
+    setTimeout(() => {
+      initFirmaCanvas('fvf');
+      initFirmaCanvas('club');
+    }, 150);
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1936,101 +1942,105 @@ function mostrarToast(msg) {
 // ── FIRMAS CON EL DEDO ──
 const firmaState = { fvf: false, club: false };
 
-function initFirmas() {
-  ['fvf', 'club'].forEach(id => {
-    const canvas = document.getElementById('canvas_' + id);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let dibujando = false;
-    let ultimoX = 0, ultimoY = 0;
+function initFirmaCanvas(id) {
+  const canvas = document.getElementById('canvas_' + id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let dibujando = false;
 
-    function redimensionar() {
-      const rect = canvas.getBoundingClientRect();
-      const data = canvas.toDataURL();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = 120 * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-      ctx.strokeStyle = '#1a1815';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      if (firmaState[id]) {
-        const img = new Image();
-        img.onload = () => ctx.drawImage(img, 0, 0, rect.width, 120);
-        img.src = data;
-      }
-    }
-
-    function getPosicion(e) {
-      const rect = canvas.getBoundingClientRect();
-      if (e.touches) {
-        return {
-          x: e.touches[0].clientX - rect.left,
-          y: e.touches[0].clientY - rect.top
-        };
-      }
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    }
-
-    function iniciarTrazo(e) {
-      e.preventDefault();
-      dibujando = true;
-      const pos = getPosicion(e);
-      ultimoX = pos.x; ultimoY = pos.y;
-      ctx.beginPath();
-      ctx.moveTo(ultimoX, ultimoY);
-    }
-
-    function dibujar(e) {
-      if (!dibujando) return;
-      e.preventDefault();
-      const pos = getPosicion(e);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
-      ultimoX = pos.x; ultimoY = pos.y;
-      if (!firmaState[id]) {
-        firmaState[id] = true;
-        document.getElementById('ph_' + id).style.opacity = '0';
-        document.getElementById('wrap_' + id).classList.add('firmado');
-        document.getElementById('estado_' + id).textContent = '✓ Firmado';
-        document.getElementById('estado_' + id).classList.add('ok');
-      }
-    }
-
-    function terminarTrazo(e) {
-      if (!dibujando) return;
-      e.preventDefault();
-      dibujando = false;
-      ctx.beginPath();
-    }
-
-    canvas.addEventListener('mousedown', iniciarTrazo);
-    canvas.addEventListener('mousemove', dibujar);
-    canvas.addEventListener('mouseup', terminarTrazo);
-    canvas.addEventListener('mouseleave', terminarTrazo);
-    canvas.addEventListener('touchstart', iniciarTrazo, { passive: false });
-    canvas.addEventListener('touchmove', dibujar, { passive: false });
-    canvas.addEventListener('touchend', terminarTrazo, { passive: false });
-
+  function setupCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const w = rect.width || canvas.parentElement.offsetWidth || 300;
+    canvas.width = w * window.devicePixelRatio;
+    canvas.height = 120 * window.devicePixelRatio;
+    canvas.style.width = w + 'px';
+    canvas.style.height = '120px';
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
     ctx.strokeStyle = '#1a1815';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+  }
 
-    redimensionar();
-    window.addEventListener('resize', redimensionar);
-  });
+  function getPosicion(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  }
+
+  function iniciarTrazo(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dibujando = true;
+    const pos = getPosicion(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+
+  function dibujar(e) {
+    if (!dibujando) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = getPosicion(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    if (!firmaState[id]) {
+      firmaState[id] = true;
+      const ph = document.getElementById('ph_' + id);
+      if (ph) ph.style.opacity = '0';
+      const wrap = document.getElementById('wrap_' + id);
+      if (wrap) wrap.classList.add('firmado');
+      const estado = document.getElementById('estado_' + id);
+      if (estado) { estado.textContent = '✓ Firmado'; estado.classList.add('ok'); }
+    }
+  }
+
+  function terminarTrazo(e) {
+    if (!dibujando) return;
+    e.preventDefault();
+    dibujando = false;
+    ctx.beginPath();
+  }
+
+  canvas.addEventListener('mousedown', iniciarTrazo);
+  canvas.addEventListener('mousemove', dibujar);
+  canvas.addEventListener('mouseup', terminarTrazo);
+  canvas.addEventListener('mouseleave', terminarTrazo);
+  canvas.addEventListener('touchstart', iniciarTrazo, { passive: false });
+  canvas.addEventListener('touchmove', dibujar, { passive: false });
+  canvas.addEventListener('touchend', terminarTrazo, { passive: false });
+
+  setupCanvas();
+  window.addEventListener('resize', () => { if (!firmaState[id]) setupCanvas(); });
+}
+
+function initFirmas() {
+  // Esperar a que el DOM esté completamente renderizado
+  setTimeout(() => {
+    initFirmaCanvas('fvf');
+    initFirmaCanvas('club');
+  }, 100);
 }
 
 function borrarFirma(id) {
   const canvas = document.getElementById('canvas_' + id);
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Restaurar configuración de trazo
+  ctx.strokeStyle = '#1a1815';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   firmaState[id] = false;
-  document.getElementById('ph_' + id).style.opacity = '1';
-  document.getElementById('wrap_' + id).classList.remove('firmado');
-  document.getElementById('estado_' + id).textContent = 'Sin firmar';
-  document.getElementById('estado_' + id).classList.remove('ok');
+  const ph = document.getElementById('ph_' + id);
+  if (ph) ph.style.opacity = '1';
+  const wrap = document.getElementById('wrap_' + id);
+  if (wrap) wrap.classList.remove('firmado');
+  const estado = document.getElementById('estado_' + id);
+  if (estado) { estado.textContent = 'Sin firmar'; estado.classList.remove('ok'); }
 }
 
 function getFirmaDataURL(id) {
@@ -2056,12 +2066,5 @@ initEstrellas();
 actualizarBadge();
 initFirmas();
 </script>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
-  }
-</script>
-<link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" sizes="180x180" href="escudo.png">
 </body>
 </html>
